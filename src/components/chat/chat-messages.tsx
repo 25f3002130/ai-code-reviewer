@@ -1,7 +1,7 @@
 'use client';
 
 import { Message } from '@/types/chat';
-import { GlassCard } from '@/components/ui/glass-card';
+
 import { FormattedMessage } from './chat-code-block';
 import { User, Bot, Code2 } from 'lucide-react';
 
@@ -14,76 +14,79 @@ export function ChatMessages({ messages, isLoading = false }: ChatMessagesProps)
   if (messages.length === 0 && !isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-        <GlassCard className="p-8 text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-purple-600/20 flex items-center justify-center mx-auto mb-4">
-            <Code2 className="w-8 h-8 text-cyan-400" />
+        <div className="p-12 text-center max-w-md bg-black border-4 border-white shadow-[12px_12px_0px_0px_rgba(255,255,255,0.1)]">
+          <div className="w-20 h-20 bg-white flex items-center justify-center mx-auto mb-8">
+            <Code2 className="w-10 h-10 text-black" />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">
-            Ready to Review Code
+          <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-tighter">
+            READY FOR REVIEW
           </h3>
-          <p className="text-gray-400">
-            Paste your code below and get instant AI-powered feedback on quality, bugs, and improvements.
+          <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest leading-relaxed">
+            INPUT CODE BELOW. 
+            AI ANALYSIS INITIALIZED.
           </p>
-        </GlassCard>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto p-6 space-y-8">
       {messages.map((message) => (
         <div
           key={message.id}
-          className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
         >
           {message.role === 'assistant' && (
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <Bot className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-white flex items-center justify-center flex-shrink-0">
+              <Bot className="w-6 h-6 text-black" />
             </div>
           )}
 
-          <GlassCard
+          <div
             className={`
-              max-w-[85%] lg:max-w-[75%] p-4
+              max-w-[85%] lg:max-w-[75%] p-8 border-4
               ${message.role === 'user'
-                ? 'bg-cyan-500/20 border-cyan-500/30'
-                : 'bg-white/5 border-white/10'
+                ? 'bg-zinc-900 border-zinc-700 text-white'
+                : 'bg-black border-white text-white shadow-[10px_10px_0px_0px_rgba(255,255,255,0.1)]'
               }
             `}
           >
             {message.role === 'user' ? (
-              <div className="whitespace-pre-wrap text-gray-100 font-mono text-sm">
+              <div className="whitespace-pre-wrap font-mono text-sm font-bold">
                 {message.content}
               </div>
             ) : (
-              <FormattedMessage content={message.content} />
+              <div className="font-bold">
+                <FormattedMessage content={message.content} />
+              </div>
             )}
 
-            <div className={`text-xs text-gray-500 mt-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+            <div className={`text-[10px] font-black uppercase tracking-widest text-zinc-600 mt-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
               {new Date(message.timestamp).toLocaleTimeString()}
             </div>
-          </GlassCard>
+          </div>
 
           {message.role === 'user' && (
-            <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-              <User className="w-5 h-5 text-gray-300" />
+            <div className="w-10 h-10 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+              <User className="w-6 h-6 text-zinc-400" />
             </div>
           )}
         </div>
       ))}
 
       {isLoading && (
-        <div className="flex gap-3 justify-start">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-            <Bot className="w-5 h-5 text-white" />
+        <div className="flex gap-4 justify-start">
+          <div className="w-10 h-10 bg-white flex items-center justify-center flex-shrink-0">
+            <Bot className="w-6 h-6 text-black" />
           </div>
-          <GlassCard className="bg-white/5 border-white/10 p-4">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="bg-black border-2 border-white p-6 shadow-[6px_6px_0px_0px_rgba(255,255,255,0.1)]">
+            <div className="flex gap-2">
+              <div className="w-2 h-2 bg-white animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-zinc-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-zinc-700 animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
-          </GlassCard>
+          </div>
         </div>
       )}
     </div>

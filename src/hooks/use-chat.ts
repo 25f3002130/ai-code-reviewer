@@ -1,21 +1,33 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useChatStore } from '@/lib/store/chat-store';
-import { reviewCode } from '@/lib/huggingface/api';
+import { reviewCode, getProviderStatus } from '@/lib/ai-providers';
 import { Message } from '@/types/chat';
-import { generateId, detectLanguage } from '@/lib/utils';
+import { generateId, detectLanguage, isTechnicalQuery } from '@/lib/utils';
 
 export function useChat() {
   const {
     currentConversationId,
     addMessage,
-    updateCurrentConversation,
     createConversation,
   } = useChatStore();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [providerStatus, setProviderStatus] = useState(getProviderStatus());
 
-  const sendMessage = useCallback(async (content: string) => {
+  // Update status periodically if limited
+  useEffect(() => {
+    const hasLimited = providerStatus.some(p => !p.available);
+    if (!hasLimited) return;
+
+    const interval = setInterval(() => {
+      setProviderStatus(getProviderStatus());
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [providerStatus]);
+
+  const sendMessage = useCallback(async (content: string, model?: string) => {
     if (!content.trim()) return;
 
     let conversationId = currentConversationId;
@@ -36,12 +48,29 @@ export function useChat() {
     };
 
     addMessage(conversationId, userMessage);
+    
+    // Local Intent Check
+    if (!isTechnicalQuery(content)) {
+      const refusalMessage: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: "PROTOCOL_REFUSAL // I AM OPTIMIZED FOR TECHNICAL ANALYSIS AND CODE REVIEW. PLEASE PROVIDE A PROGRAMMING-RELATED QUERY OR CODE SNIPPET TO PROCEED.",
+        timestamp: Date.now(),
+      };
+      setTimeout(() => {
+        addMessage(conversationId, refusalMessage);
+        setIsGenerating(false);
+      }, 500);
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
 
     try {
       // Get code review from AI
-      const result = await reviewCode(content);
+      const result = await reviewCode(content, model);
+      setProviderStatus(getProviderStatus());
 
       // Add assistant response
       const assistantMessage: Message = {
@@ -55,12 +84,13 @@ export function useChat() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get code review';
       setError(errorMessage);
+      setProviderStatus(getProviderStatus());
 
       // Add error message to conversation
       const errorMessageObj: Message = {
         id: generateId(),
         role: 'assistant',
-        content: `Error: ${errorMessage}`,
+        content: `Error: ${errorMessage}\n\nTip: If rate limited, wait a moment and try again. The system will automatically fall back to alternative providers.`,
         timestamp: Date.now(),
       };
 
@@ -78,6 +108,7 @@ export function useChat() {
     currentConversationId,
     isGenerating,
     error,
+    providerStatus,
     sendMessage,
     clearError,
   };

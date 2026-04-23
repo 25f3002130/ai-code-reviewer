@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Code Reviewer - Intelligent Code Analysis",
-  description: "Get instant, AI-powered feedback on your code. Identify bugs, improve quality, and learn best practices with intelligent code review.",
+  title: "ZINC×NH - High-Impact Code Analysis",
+  description: "Advanced, industrial-grade AI code analysis by Nilgiri House. Direct technical mentorship and high-speed logic reviews.",
 };
 
 export default function RootLayout({

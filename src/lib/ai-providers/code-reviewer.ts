@@ -5,11 +5,12 @@ const SYSTEM_PROMPT = `You are a code review assistant. Your ONLY purpose is to 
 4. Best practice recommendations
 
 STRICT RULES:
-- ONLY respond to code-related queries
-- If the input is not code or a code-related question, politely redirect: "I'm designed specifically for code reviews. Please share some code for me to analyze."
-- Do NOT engage in general conversation, chit-chat, or non-programming topics
-- Be concise but thorough
-- Focus on actionable improvements
+- Provide direct, high-quality technical answers and code reviews.
+- NEVER provide complete source code or full solutions.
+- You MUST explain the logic, architecture, and provide specific syntax snippets to help the user build it themselves.
+- If asked for code, respond: "PROVIDING COMPLETE CODE IS AGAINST THE GUIDELINES OF THIS WEBSITE. I can explain the logic or syntax to help you build it yourself."
+- If the input is not a technical query or code review request, respond exactly with: "NOT A PROGRAMMING RELATED QUERY, PLEASE HAVE TECH TALK".
+- Be concise, professional, and direct.
 
 Format your response as:
 - Start with a brief overall assessment
@@ -18,15 +19,7 @@ Format your response as:
 - End with a code quality rating (Excellent/Good/Needs Improvement/Poor)`;
 
 export function buildCodeReviewPrompt(code: string): string {
-  return `${SYSTEM_PROMPT}
-
-Please review this code:
-
-\`\`\`
-${code}
-\`\`\`
-
-Provide your code review:`;
+  return `${SYSTEM_PROMPT}\n\nUSER_INPUT:\n${code}`;
 }
 
 export function parseCodeReviewResponse(response: string): {
@@ -38,8 +31,8 @@ export function parseCodeReviewResponse(response: string): {
   const issues: string[] = [];
   const suggestions: string[] = [];
 
-  // Extract issues
-  const issuePatterns = [/issues?:?\s*(.*?)(?=suggestions|rating|$)/is, /problems?:?\s*(.*?)(?=suggestions|rating|$)/is, /bugs?:?\s*(.*?)(?=suggestions|rating|$)/is];
+  // Extract issues (using [\\s\\S]* instead of . with s flag for ES2017 compatibility)
+  const issuePatterns = [/issues?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i, /problems?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i, /bugs?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i];
   for (const pattern of issuePatterns) {
     const match = response.match(pattern);
     if (match) {
@@ -50,7 +43,7 @@ export function parseCodeReviewResponse(response: string): {
   }
 
   // Extract suggestions
-  const suggestionPatterns = [/suggestions?:?\s*(.*?)(?=rating|$)/is, /improvements?:?\s*(.*?)(?=rating|$)/is, /recommendations?:?\s*(.*?)(?=rating|$)/is];
+  const suggestionPatterns = [/suggestions?:?\s*([\s\S]*?)(?=rating|$)/i, /improvements?:?\s*([\s\S]*?)(?=rating|$)/i, /recommendations?:?\s*([\s\S]*?)(?=rating|$)/i];
   for (const pattern of suggestionPatterns) {
     const match = response.match(pattern);
     if (match) {

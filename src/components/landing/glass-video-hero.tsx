@@ -40,8 +40,8 @@ export function GlassVideoHero({ onGetStarted }: GlassVideoHeroProps) {
             transition={{ duration: 0.8 }}
           >
             <GlassCard className="inline-flex items-center gap-2 px-4 py-2 mb-6">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-cyan-300">AI-Powered Code Analysis</span>
+              <Zap className="w-4 h-4 text-zinc-400" />
+              <span className="text-sm text-zinc-300">AI-Powered Code Analysis</span>
             </GlassCard>
           </motion.div>
 
@@ -52,7 +52,7 @@ export function GlassVideoHero({ onGetStarted }: GlassVideoHeroProps) {
             className="text-5xl md:text-7xl font-bold text-white mb-6"
           >
             AI-Powered{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-200 to-zinc-600">
               Code Reviews
             </span>
           </motion.h1>
@@ -75,11 +75,11 @@ export function GlassVideoHero({ onGetStarted }: GlassVideoHeroProps) {
             <button
               onClick={onGetStarted}
               className="group relative inline-flex items-center gap-2 px-8 py-4
-                bg-gradient-to-r from-cyan-500 to-purple-600
+                bg-gradient-to-r from-zinc-600 to-zinc-800
                 rounded-full text-white font-semibold text-lg
-                shadow-lg shadow-cyan-500/25
+                shadow-lg shadow-zinc-900/50
                 transition-all duration-300
-                hover:shadow-cyan-500/50 hover:scale-105"
+                hover:shadow-zinc-500/50 hover:scale-105"
             >
               Start Reviewing Code
               <Code2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
@@ -95,8 +95,8 @@ export function GlassVideoHero({ onGetStarted }: GlassVideoHeroProps) {
           className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
           <GlassCard hover className="p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 flex items-center justify-center mb-4">
-              <Code2 className="w-6 h-6 text-cyan-400" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-500/20 to-zinc-800/20 flex items-center justify-center mb-4">
+              <Code2 className="w-6 h-6 text-zinc-400" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">Code Analysis</h3>
             <p className="text-gray-400">
@@ -115,8 +115,8 @@ export function GlassVideoHero({ onGetStarted }: GlassVideoHeroProps) {
           </GlassCard>
 
           <GlassCard hover className="p-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/20 flex items-center justify-center mb-4">
-              <Lightbulb className="w-6 h-6 text-purple-400" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-500/20 to-gray-600/20 flex items-center justify-center mb-4">
+              <Lightbulb className="w-6 h-6 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">Smart Suggestions</h3>
             <p className="text-gray-400">

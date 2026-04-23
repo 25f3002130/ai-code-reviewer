@@ -1,0 +1,28 @@
+[debug] [2026-04-23T21:56:52.374Z] ----------------------------------------------------------------------
+[debug] [2026-04-23T21:56:52.375Z] Command:       /home/dialgga/.nvm/versions/node/v24.15.0/bin/node /home/dialgga/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy --only firestore:rules
+[debug] [2026-04-23T21:56:52.375Z] CLI Version:   15.15.0
+[debug] [2026-04-23T21:56:52.375Z] Platform:      linux
+[debug] [2026-04-23T21:56:52.375Z] Node Version:  v24.15.0
+[debug] [2026-04-23T21:56:52.375Z] Time:          Fri Apr 24 2026 03:26:52 GMT+0530 (India Standard Time)
+[debug] [2026-04-23T21:56:52.375Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-23T21:56:57.973Z] Error: Timed out.
+    at Timeout._onTimeout (/home/dialgga/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/utils.js:309:49)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-04-23T21:57:14.520Z] ----------------------------------------------------------------------
+[debug] [2026-04-23T21:57:14.521Z] Command:       /home/dialgga/.nvm/versions/node/v24.15.0/bin/node /home/dialgga/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase login --reauth
+[debug] [2026-04-23T21:57:14.521Z] CLI Version:   15.15.0
+[debug] [2026-04-23T21:57:14.521Z] Platform:      linux
+[debug] [2026-04-23T21:57:14.521Z] Node Version:  v24.15.0
+[debug] [2026-04-23T21:57:14.521Z] Time:          Fri Apr 24 2026 03:27:14 GMT+0530 (India Standard Time)
+[debug] [2026-04-23T21:57:14.521Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-23T21:57:19.654Z] Error: Timed out.
+    at Timeout._onTimeout (/home/dialgga/.npm/_npx/ba4f1959e38407b5/node_modules/firebase-tools/lib/utils.js:309:49)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.

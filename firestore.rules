@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      // Allow read/write/delete only if the user is authenticated and owns the document
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
