@@ -13,8 +13,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com'),
   title: "ZINC×NH - High-Impact Code Analysis",
   description: "Advanced, industrial-grade AI code analysis by Nilgiri House. Direct technical mentorship and high-speed logic reviews.",
+  openGraph: {
+    title: "ZINC×NH - High-Impact Code Analysis",
+    description: "Instant code analysis, bug detection, and performance optimization.",
+    images: [{ url: '/opengraph-image' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "ZINC×NH - High-Impact Code Analysis",
+    description: "Instant code analysis, bug detection, and performance optimization.",
+    images: ['/twitter-image'],
+  },
 };
 
 export default function RootLayout({
