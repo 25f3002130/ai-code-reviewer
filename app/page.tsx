@@ -20,9 +20,10 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black flex flex-col relative overflow-x-hidden">
-      {/* Background - Simplified to CSS for debug */}
-      <div className="absolute inset-0 z-0 bg-black" />
-      <div className="absolute inset-0 z-0 opacity-30 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 via-transparent to-transparent pointer-events-none" />
+      {/* Background - GLSL Hills */}
+      <div className="absolute inset-0 z-0 bg-black overflow-hidden pointer-events-none">
+        <GLSLHills />
+      </div>
       
       <Navbar onSignUp={handleSignUp} onSignIn={handleSignIn} />
 

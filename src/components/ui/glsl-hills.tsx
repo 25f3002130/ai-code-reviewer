@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
-const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize = 256, speed = 0.5 }) => {
+const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize = 512, speed = 0.5 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -139,11 +139,11 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
               precision highp float;
               #define GLSLIFY 1
               varying vec3 vPosition;
-
+ 
               void main(void) {
-                float opacity = (96.0 - length(vPosition)) / 256.0 * 0.6;
+                float opacity = (128.0 - length(vPosition)) / 256.0 * 0.4;
                 vec3 color = vec3(0.6);
-                gl_FragColor = vec4(color, opacity);
+                gl_FragColor = vec4(color, clamp(opacity, 0.0, 1.0));
               }
             `,
             transparent: true
@@ -157,7 +157,7 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
     }
 
     // Three.js setup
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: false });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true });
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
     const clock = new THREE.Clock();
@@ -202,7 +202,7 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
   }, [cameraZ, planeSize, speed]);
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width, height }}> 
+    <div ref={containerRef} style={{ position: 'relative', width, height }}>
       <canvas
         ref={canvasRef}
         style={{
@@ -218,4 +218,4 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
   );
 };
 
-export { GLSLHills } ;
+export { GLSLHills };
