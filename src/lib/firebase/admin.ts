@@ -5,7 +5,21 @@ if (!admin.apps.length) {
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       // Use service account key from env if available
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      let envKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+      
+      // Remove surrounding quotes if present (common in .env files)
+      if ((envKey.startsWith("'") && envKey.endsWith("'")) || 
+          (envKey.startsWith('"') && envKey.endsWith('"'))) {
+        envKey = envKey.slice(1, -1);
+      }
+
+      const serviceAccount = JSON.parse(envKey);
+      
+      // Fix potential newline issues in private key if it was stringified poorly
+      if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });

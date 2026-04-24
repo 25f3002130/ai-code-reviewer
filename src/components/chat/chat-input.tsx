@@ -17,12 +17,6 @@ interface ChatInputProps {
   };
 }
 
-const MODELS = [
-  { id: 'gemini', name: 'GEMINI_2.0' },
-  { id: 'groq', name: 'GROQ_LLAMA_3.3' },
-  { id: '', name: 'AUTO_FALLBACK' },
-];
-
 export function ChatInput({
   onSend,
   isLoading = false,
@@ -31,11 +25,10 @@ export function ChatInput({
   quotaRemaining = { daily: 0, hourly: 0, dailyLimit: 30, hourlyLimit: 10 }
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
 
   const handleSubmit = () => {
     if (message.trim() && !isLoading) {
-      onSend(message.trim(), selectedModel || undefined);
+      onSend(message.trim());
       setMessage('');
     }
   };
@@ -71,33 +64,6 @@ export function ChatInput({
               transition-all
             "
           />
-
-          {/* Model Selector Dropdown */}
-          <div className="absolute left-4 bottom-4">
-            <div className="relative inline-block">
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={isLoading || disabled}
-                className="
-                  appearance-none bg-black border-2 border-zinc-800 
-                  text-[10px] font-black uppercase tracking-widest text-zinc-500
-                  px-3 py-1 pr-8
-                  hover:border-white hover:text-white
-                  focus:outline-none focus:border-white
-                  cursor-pointer transition-all
-                  rounded-none
-                "
-              >
-                {MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-600 pointer-events-none" />
-            </div>
-          </div>
 
           <div className="absolute right-4 bottom-4 flex items-center gap-3">
             {/* Quota Meter */}

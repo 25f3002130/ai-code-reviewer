@@ -5,16 +5,18 @@ import { getCachedReview, setCachedReview } from '@/lib/storage/cache-storage';
 import { checkAndIncrementRateLimit } from '@/lib/rate-limit-server';
 
 // Server-side API keys (not exposed to client)
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+// Server-side API keys (not exposed to client)
 const GROQ_API_KEYS = (process.env.GROQ_API_KEY || '').split(',').filter(k => k.trim());
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-lite-preview-02-05:free';
+const HF_API_KEYS = (process.env.HF_API_KEY || '').split(',').filter(k => k.trim());
+const HF_MODELS = [
+  'Qwen/Qwen2.5-Coder-32B-Instruct',
+  'bigcode/starcoder2-15b-instruct-v0.1',
+  'meta-llama/Llama-3.2-3B-Instruct'
+];
 
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const HF_API_URL_PREFIX = 'https://api-inference.huggingface.co/models/';
 
 // Rate limit tracking (in-memory for server instance)
 const rateLimits = new Map<string, { until: number; count: number }>();
@@ -37,37 +39,48 @@ function recordRateLimit(provider: string, retryAfterSeconds: number = 60) {
   });
 }
 
-async function tryGemini(code: string): Promise<CodeReviewResult> {
-  if (!GEMINI_API_KEY) throw new Error('Gemini API key not configured');
-  if (isRateLimited('gemini')) throw new Error('Gemini rate limited');
+async function tryHuggingFace(code: string, apiKey: string, model: string): Promise<CodeReviewResult> {
+  if (isRateLimited(`hf-${model}`)) throw new Error(`HF model ${model} rate limited`);
 
   const prompt = buildCodeReviewPrompt(code);
-  const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`${HF_API_URL_PREFIX}${model}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.3, topK: 40, topP: 0.95, maxOutputTokens: 2048 },
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-      ],
+      inputs: prompt,
+      parameters: { temperature: 0.3, max_new_tokens: 2048 },
+      options: { wait_for_model: true }
     }),
   });
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
     if (response.status === 429) {
-      recordRateLimit('gemini', 60);
-      throw new Error('Gemini rate limit exceeded');
+      recordRateLimit(`hf-${model}`, 60);
+      throw new Error('HuggingFace rate limit exceeded');
     }
-    throw new Error(data.error?.message || `Gemini failed: ${response.status}`);
+    throw new Error(data.error || `HuggingFace failed: ${response.status}`);
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty Gemini response');
+  // HF Inference API can return different structures depending on model
+  let text = '';
+  if (Array.isArray(data)) {
+    text = data[0]?.generated_text || data[0]?.content || '';
+  } else {
+    text = data.generated_text || data.content || '';
+  }
+
+  if (!text) throw new Error('Empty HuggingFace response');
+  
+  // Some HF models include the prompt in output, strip it if necessary
+  if (text.includes('###')) {
+    text = text.split('###').pop() || text;
+  }
+
   return parseCodeReviewResponse(text);
 }
 
@@ -127,40 +140,7 @@ GUIDELINES:
   return parseCodeReviewResponse(text);
 }
 
-async function tryOpenRouter(code: string): Promise<CodeReviewResult> {
-  if (!OPENROUTER_API_KEY) throw new Error('OpenRouter API key not configured');
-  if (isRateLimited('openrouter')) throw new Error('OpenRouter rate limited');
-
-  const prompt = buildCodeReviewPrompt(code);
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://nilgiri.iitmbs.org',
-      'X-Title': 'ZINCxNH Code Reviewer',
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-    }),
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 429) {
-      recordRateLimit('openrouter', 60);
-      throw new Error('OpenRouter rate limit exceeded');
-    }
-    throw new Error(data.error?.message || `OpenRouter failed: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error('Empty OpenRouter response');
-  return parseCodeReviewResponse(text);
-}
+// OpenRouter removed as per user request
 
 export async function POST(request: NextRequest) {
   try {
@@ -210,22 +190,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Try Gemini
-    try {
-      const result = await tryGemini(code);
-      await setCachedReview(prompt, result);
-      return NextResponse.json(result);
-    } catch (e) {
-      errors.push(`Gemini: ${e instanceof Error ? e.message : 'failed'}`);
-    }
-
-    // Try OpenRouter as fallback
-    try {
-      const result = await tryOpenRouter(code);
-      await setCachedReview(prompt, result);
-      return NextResponse.json(result);
-    } catch (e) {
-      errors.push(`OpenRouter: ${e instanceof Error ? e.message : 'failed'}`);
+    // Try Hugging Face as backup (multiple models and keys rotation)
+    for (const hfKey of HF_API_KEYS) {
+      for (const model of HF_MODELS) {
+        try {
+          const result = await tryHuggingFace(code, hfKey.trim(), model);
+          await setCachedReview(prompt, result);
+          return NextResponse.json(result);
+        } catch (e) {
+          errors.push(`HF(${model}): ${e instanceof Error ? e.message : 'failed'}`);
+        }
+      }
     }
 
     return NextResponse.json({ error: `All providers failed: ${errors.join(' | ')}` }, { status: 503 });

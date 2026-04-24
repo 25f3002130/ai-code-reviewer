@@ -79,8 +79,8 @@ export default function Home() {
               {[
                 {
                   icon: <Cpu className="w-8 h-8" />,
-                  title: "MULTI_MODEL_AI",
-                  desc: "Switch between Gemini 2.0 and Groq Llama 3.3 for diverse perspectives and high-speed analysis."
+                  title: "RESILIENT_AI_ENGINE",
+                  desc: "Powered by Groq and Hugging Face clusters with automatic key rotation for guaranteed uptime."
                 },
                 {
                   icon: <Zap className="w-8 h-8" />,

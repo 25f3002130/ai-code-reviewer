@@ -89,32 +89,7 @@ export function useChat() {
         timestamp: Date.now(),
       };
 
-      // Client-side rate limit incrementing (fallback for local development)
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const rateLimitRef = doc(db, 'rate_limits', user.uid);
-          const rateLimitSnap = await getDoc(rateLimitRef);
-          
-          if (!rateLimitSnap.exists()) {
-            await setDoc(rateLimitRef, {
-              requestsToday: 1,
-              requestsThisHour: 1,
-              dailyLimit: 30,
-              hourlyLimit: 10,
-              lastRequestAt: serverTimestamp(),
-              resetAt: serverTimestamp()
-            });
-          } else {
-            await updateDoc(rateLimitRef, {
-              requestsToday: increment(1),
-              requestsThisHour: increment(1),
-              lastRequestAt: serverTimestamp()
-            });
-          }
-        } catch (rateLimitErr) {
-          // Silent fail in development
-        }
-      }
+      addMessage(conversationId, assistantMessage, user.uid);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get code review';
       setError(errorMessage);

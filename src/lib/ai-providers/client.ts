@@ -15,8 +15,7 @@ const clientRateLimits = new Map<string, { isLimited: boolean; resetAt?: number 
 export function getProviderStatus(): ProviderStatus[] {
   return [
     { name: 'groq', available: !clientRateLimits.get('groq')?.isLimited },
-    { name: 'gemini', available: !clientRateLimits.get('gemini')?.isLimited },
-    { name: 'openrouter', available: !clientRateLimits.get('openrouter')?.isLimited },
+    { name: 'huggingface', available: !clientRateLimits.get('huggingface')?.isLimited },
   ];
 }
 

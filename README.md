@@ -1,6 +1,4 @@
-# CodeReviewAI
-
-An AI-powered code review platform built with **Next.js 16**, **Firebase**, **Gemini API**, and **Groq**.
+An AI-powered code review platform built with **Next.js 16**, **Firebase**, **Groq**, and **Hugging Face**.
 
 ---
 
@@ -85,17 +83,16 @@ npm install
 5. Add a Firestore index (or let it auto-create on first query):
    - Collection: `conversations`, Fields: `userId ASC`, `updatedAt DESC`
 
-### 3. Get Gemini API Key (FREE)
+### 3. Get Hugging Face API Key (FREE)
 
-1. Go to [Google AI Studio](https://aistudio.google.com/apikey)
-2. Sign in with Google account
-3. Click **Create API Key**
-4. Copy the key (starts with `AIza...`)
+1. Go to [Hugging Face Tokens](https://huggingface.co/settings/tokens)
+2. Click **New token** → Role: **Read**
+3. Copy the key (starts with `hf_...`)
 
-**Free tier limits:**
-- 60 requests/minute
-- 15 million tokens/month
-- Note: Free tier data may be used for training
+**Recommended models (Free Inference API):**
+- `Qwen/Qwen2.5-Coder-32B-Instruct`
+- `bigcode/starcoder2-15b-instruct-v0.1`
+- `meta-llama/Llama-3.2-3B-Instruct`
 
 ### 4. Get Groq API Key (FREE)
 
@@ -105,9 +102,9 @@ npm install
 4. Click **Create API Key**
 5. Copy the key (starts with `gsk_...`)
 
-**Free tier limits:**
-- ~30-60 requests/minute (varies by model)
-- Currently generous free tier
+**High Availability Setup:**
+- You can generate **multiple keys** (e.g., 5 keys) and paste them as a comma-separated list.
+- The system will automatically rotate through them if one is rate limited.
 
 ### 5. Configure environment
 
@@ -118,20 +115,12 @@ cp .env.example .env.local
 Fill in your keys:
 
 ```env
-# AI Provider API Keys
-NEXT_PUBLIC_GEMINI_API_KEY=AIza...your_gemini_key_here
-NEXT_PUBLIC_GEMINI_MODEL=gemini-2.0-flash
+# AI Provider API Keys (Comma-separated for rotation)
+GROQ_API_KEY=gsk_key1,gsk_key2,gsk_key3,gsk_key4,gsk_key5
+GROQ_MODEL=llama-3.3-70b-versatile
 
-NEXT_PUBLIC_GROQ_API_KEY=gsk_...your_groq_key_here
-NEXT_PUBLIC_GROQ_MODEL=llama-3.1-70b-versatile
-
-# Firebase Configuration
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
+HF_API_KEY=hf_key1,hf_key2
+# HF Models are configured in the code as a fallback chain
 ```
 
 ### 6. Run
@@ -164,10 +153,10 @@ If `pnpm build` passes locally, Vercel build should pass as well.
 The system uses a **priority-based fallback** approach:
 
 ```
-1. Gemini API (primary)
-   ↓ (if rate limited or fails)
-2. Groq API (fallback)
-   ↓ (if rate limited or fails)
+1. Groq Cluster (Primary - rotates through all provided keys)
+   ↓ (if all Groq keys fail)
+2. Hugging Face Cluster (Backup - rotates through multiple keys and models)
+   ↓ (if all HF providers fail)
 3. Error shown to user
 ```
 
@@ -187,8 +176,8 @@ The system uses a **priority-based fallback** approach:
 
 | Provider | Model | Best For |
 |----------|-------|----------|
-| Gemini | `gemini-2.0-flash` | Fast, general code review |
-| Groq | `llama-3.1-70b-versatile` | Deep analysis, fallback |
+| Groq | `llama-3.3-70b-versatile` | Ultra-fast, high accuracy |
+| Hugging Face | `Qwen2.5-Coder-32B` | Specialized code reasoning |
 
 **Alternative Groq models:**
 - `llama-3.1-8b-instant` - Faster, less accurate
@@ -215,9 +204,9 @@ service cloud.firestore {
 
 ## Troubleshooting
 
-**"Gemini rate limit exceeded"**
-- Wait 60 seconds, the system will automatically fall back to Groq
-- Consider upgrading to Gemini's paid tier for higher limits
+**"API not configured" or "Limit exceeded"**
+- Ensure you have added your keys to the Vercel dashboard.
+- If using multiple keys, separate them with commas (no spaces).
 
 **"Invalid API key"**
 - Double-check keys in `.env.local`
