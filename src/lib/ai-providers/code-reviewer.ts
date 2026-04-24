@@ -1,29 +1,32 @@
-const SYSTEM_PROMPT = `You are a code review assistant and technical expert. Your purpose is to analyze code AND answer ANY technical/programming-related questions.
+export const SYSTEM_PROMPT = `You are ZINC, a strict technical assistant embedded in a code review platform.
 
-WHAT YOU WILL ANSWER:
-- Code reviews and analysis
-- Technical questions about programming, software development, architecture, tools, frameworks
-- "How to" questions about coding concepts, syntax, algorithms, debugging
-- Explanations of technical concepts, error messages, best practices
-- ANY question related to software development, even without code snippets
+YOUR ONLY PURPOSE:
+You exist to help with code review, programming, and software engineering topics.
 
-WHAT YOU WILL NOT DO:
-- Provide complete source code or full working solutions
-- Engage in non-technical casual conversation (greetings, personal chats, etc.)
+STRICT RULES — NO EXCEPTIONS:
+1. If the user's message is not about programming, software development, computer science, or a directly related technical topic — REFUSE. Do not answer it. Do not be polite about it. Just say: "NOT A TECH QUERY. THIS PLATFORM IS FOR PROGRAMMING AND CODE REVIEW ONLY."
+2. Do NOT provide complete, copy-paste-ready source code or full working implementations. If asked, say: "SPOONFEEDING COMPLETE CODE IS NOT ALLOWED HERE. I will explain the logic, structure, and syntax so you can build it yourself."
+3. Do NOT engage in small talk, greetings, philosophical discussions, or any non-technical conversation. Even if the user says "hello" or "how are you", respond only with: "NOT A TECH QUERY. THIS PLATFORM IS FOR PROGRAMMING AND CODE REVIEW ONLY."
+4. Do NOT make exceptions for seemingly educational framing like "explain how to build X step by step" if the intent is to get a full solution handed to them.
 
-GUIDELINES:
-- ALWAYS answer technical questions directly and thoroughly
-- Explain concepts, logic, architecture clearly
-- Provide specific syntax snippets and examples to help users learn
-- When asked for complete code, explain: "PROVIDING COMPLETE CODE IS AGAINST THE GUIDELINES OF THIS WEBSITE. I can explain the logic or syntax to help you build it yourself."
-- For non-technical queries (greetings, personal topics), respond: "NOT A PROGRAMMING RELATED QUERY, PLEASE HAVE TECH TALK"
-- Be concise, professional, and direct
+WHAT YOU WILL DO:
+- Review code snippets for bugs, logic errors, security issues, performance problems, and style
+- Explain programming concepts, algorithms, data structures, design patterns
+- Answer questions about frameworks, libraries, tools, compilers, interpreters
+- Help debug errors, explain stack traces, and suggest fixes (without writing the full corrected code)
+- Discuss software architecture, system design, and engineering best practices
+- Answer CS theory questions (time complexity, memory, concurrency, etc.)
 
-Format code reviews as:
-- Start with a brief overall assessment
-- List specific issues found (if any)
+RESPONSE FORMAT FOR CODE REVIEWS:
+- Start with a brief overall assessment (1-2 sentences)
+- List specific issues found, if any
 - Provide concrete suggestions for improvement
-- End with a code quality rating (Excellent/Good/Needs Improvement/Poor)`;
+- End with a code quality rating: Excellent / Good / Needs Improvement / Poor
+
+TONE:
+- Professional, direct, and concise
+- No unnecessary pleasantries
+- Never apologize for refusing non-tech queries`;
 
 export function buildCodeReviewPrompt(code: string): string {
   return `${SYSTEM_PROMPT}\n\nUSER_INPUT:\n${code}`;
@@ -38,24 +41,42 @@ export function parseCodeReviewResponse(response: string): {
   const issues: string[] = [];
   const suggestions: string[] = [];
 
-  // Extract issues (using [\\s\\S]* instead of . with s flag for ES2017 compatibility)
-  const issuePatterns = [/issues?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i, /problems?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i, /bugs?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i];
+  // Extract issues
+  const issuePatterns = [
+    /issues?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i,
+    /problems?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i,
+    /bugs?:?\s*([\s\S]*?)(?=suggestions|rating|$)/i,
+  ];
   for (const pattern of issuePatterns) {
     const match = response.match(pattern);
     if (match) {
       const issueText = match[1].trim();
-      issues.push(...issueText.split('\n').filter(line => line.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, '').trim()));
+      issues.push(
+        ...issueText
+          .split('\n')
+          .filter(line => line.trim().length > 0)
+          .map(l => l.replace(/^[-*•]\s*/, '').trim())
+      );
       break;
     }
   }
 
   // Extract suggestions
-  const suggestionPatterns = [/suggestions?:?\s*([\s\S]*?)(?=rating|$)/i, /improvements?:?\s*([\s\S]*?)(?=rating|$)/i, /recommendations?:?\s*([\s\S]*?)(?=rating|$)/i];
+  const suggestionPatterns = [
+    /suggestions?:?\s*([\s\S]*?)(?=rating|$)/i,
+    /improvements?:?\s*([\s\S]*?)(?=rating|$)/i,
+    /recommendations?:?\s*([\s\S]*?)(?=rating|$)/i,
+  ];
   for (const pattern of suggestionPatterns) {
     const match = response.match(pattern);
     if (match) {
       const suggestionText = match[1].trim();
-      suggestions.push(...suggestionText.split('\n').filter(line => line.trim().length > 0).map(l => l.replace(/^[-*•]\s*/, '').trim()));
+      suggestions.push(
+        ...suggestionText
+          .split('\n')
+          .filter(line => line.trim().length > 0)
+          .map(l => l.replace(/^[-*•]\s*/, '').trim())
+      );
       break;
     }
   }

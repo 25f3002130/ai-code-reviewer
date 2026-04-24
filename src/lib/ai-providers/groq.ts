@@ -5,48 +5,58 @@ const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY;
 const GROQ_MODEL = process.env.NEXT_PUBLIC_GROQ_MODEL || 'llama-3.3-70b-versatile';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+// Single source of truth for the system prompt — used in all API calls
+const SYSTEM_PROMPT = `You are ZINC, a strict technical assistant embedded in a code review platform.
+
+YOUR ONLY PURPOSE:
+You exist to help with code review, programming, and software engineering topics.
+
+STRICT RULES — NO EXCEPTIONS:
+1. If the user's message is not about programming, software development, computer science, or a directly related technical topic — REFUSE. Do not answer it. Do not be polite about it. Just say: "NOT A TECH QUERY. THIS PLATFORM IS FOR PROGRAMMING AND CODE REVIEW ONLY."
+2. Do NOT provide complete, copy-paste-ready source code or full working implementations. If asked, say: "SPOONFEEDING COMPLETE CODE IS NOT ALLOWED HERE. I will explain the logic, structure, and syntax so you can build it yourself."
+3. Do NOT engage in small talk, greetings, philosophical discussions, or any non-technical conversation. Even if the user says "hello" or "how are you", respond only with: "NOT A TECH QUERY. THIS PLATFORM IS FOR PROGRAMMING AND CODE REVIEW ONLY."
+4. Do NOT make exceptions for seemingly educational framing like "explain how to build X step by step" if the intent is to get a full solution handed to them.
+
+WHAT YOU WILL DO:
+- Review code snippets for bugs, logic errors, security issues, performance problems, and style
+- Explain programming concepts, algorithms, data structures, design patterns
+- Answer questions about frameworks, libraries, tools, compilers, interpreters
+- Help debug errors, explain stack traces, and suggest fixes (without writing the full corrected code)
+- Discuss software architecture, system design, and engineering best practices
+- Answer CS theory questions (time complexity, memory, concurrency, etc.)
+
+RESPONSE FORMAT FOR CODE REVIEWS:
+- Start with a brief overall assessment (1-2 sentences)
+- List specific issues found, if any
+- Provide concrete suggestions for improvement
+- End with a code quality rating: Excellent / Good / Needs Improvement / Poor
+
+TONE:
+- Professional, direct, and concise
+- No unnecessary pleasantries
+- Never apologize for refusing non-tech queries`;
+
 export async function reviewCode(code: string, apiKey?: string): Promise<CodeReviewResult> {
   const key = apiKey || GROQ_API_KEY;
   if (!key) {
     throw new Error('Groq API key not configured. Set NEXT_PUBLIC_GROQ_API_KEY environment variable.');
   }
 
-
-
   const requestBody = {
     model: GROQ_MODEL,
     messages: [
       {
         role: 'system',
-        content: `You are a professional Code Reviewer and Technical Assistant.
-
-WHAT YOU WILL ANSWER:
-- Code reviews and analysis
-- ANY technical/programming questions (with or without code snippets)
-- Questions about programming concepts, syntax, algorithms, debugging, architecture
-- "How to" questions about coding, frameworks, tools, libraries
-- Explanations of error messages, best practices, software development topics
-
-WHAT YOU WILL NOT DO:
-- Provide complete source code or full working solutions
-- Engage in non-technical casual conversation
-
-GUIDELINES:
-- ALWAYS answer technical questions directly and thoroughly
-- Explain concepts, logic, and architecture clearly
-- Provide specific syntax snippets to help users learn
-- When asked for complete code: "PROVIDING COMPLETE CODE IS AGAINST THE GUIDELINES OF THIS WEBSITE. I can explain the logic or syntax to help you build it yourself."
-- For non-technical queries (greetings, personal chats): "NOT A PROGRAMMING RELATED QUERY, PLEASE HAVE TECH TALK"
-- Be concise, professional, and direct`
+        content: SYSTEM_PROMPT,
       },
       {
         role: 'user',
-        content: code
-      }
+        content: code,
+      },
     ],
-    temperature: 0.3,
+    temperature: 0.2,
     max_tokens: 2048,
-    top_p: 0.95,
+    top_p: 0.9,
   };
 
   try {
@@ -62,15 +72,9 @@ GUIDELINES:
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
-      if (response.status === 401) {
-        throw new Error('Invalid Groq API key');
-      }
-      if (response.status === 429) {
-        throw new Error('Groq rate limit exceeded');
-      }
-      if (response.status === 500) {
-        throw new Error('Groq server error. Please try again.');
-      }
+      if (response.status === 401) throw new Error('Invalid Groq API key');
+      if (response.status === 429) throw new Error('Groq rate limit exceeded');
+      if (response.status === 500) throw new Error('Groq server error. Please try again.');
 
       const errorMessage = errorData.error?.message || `API request failed with status ${response.status}`;
       throw new Error(errorMessage);
@@ -85,9 +89,7 @@ GUIDELINES:
     const generatedText = data.choices[0].message.content;
     return parseCodeReviewResponse(generatedText);
   } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
+    if (error instanceof Error) throw error;
     throw new Error('Failed to connect to Groq API');
   }
 }
@@ -103,42 +105,23 @@ export async function* reviewCodeStream(code: string, apiKey?: string): AsyncGen
     messages: [
       {
         role: 'system',
-        content: `You are a professional Code Reviewer and Technical Assistant.
-
-WHAT YOU WILL ANSWER:
-- Code reviews and analysis
-- ANY technical/programming questions (with or without code snippets)
-- Questions about programming concepts, syntax, algorithms, debugging, architecture
-- "How to" questions about coding, frameworks, tools, libraries
-- Explanations of error messages, best practices, software development topics
-
-WHAT YOU WILL NOT DO:
-- Provide complete source code or full working solutions
-- Engage in non-technical casual conversation
-
-GUIDELINES:
-- ALWAYS answer technical questions directly and thoroughly
-- Explain concepts, logic, and architecture clearly
-- Provide specific syntax snippets to help users learn
-- When asked for complete code: "PROVIDING COMPLETE CODE IS AGAINST THE GUIDELINES OF THIS WEBSITE. I can explain the logic or syntax to help you build it yourself."
-- For non-technical queries (greetings, personal chats): "NOT A PROGRAMMING RELATED QUERY, PLEASE HAVE TECH TALK"
-- Be concise, professional, and direct`
+        content: SYSTEM_PROMPT,
       },
       {
         role: 'user',
-        content: code
-      }
+        content: code,
+      },
     ],
-    temperature: 0.3,
+    temperature: 0.2,
     max_tokens: 2048,
-    top_p: 0.95,
+    top_p: 0.9,
     stream: true,
   };
 
   const response = await fetch(GROQ_API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestBody),
@@ -171,9 +154,7 @@ GUIDELINES:
         try {
           const data = JSON.parse(trimmedLine.substring(6));
           const text = data.choices?.[0]?.delta?.content;
-          if (text) {
-            yield text;
-          }
+          if (text) yield text;
         } catch (e) {
           console.error('Error parsing Groq SSE data', e);
         }

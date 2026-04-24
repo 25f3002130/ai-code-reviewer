@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CodeReviewResult } from '@/lib/ai-providers/types';
-import { buildCodeReviewPrompt, parseCodeReviewResponse } from '@/lib/ai-providers/code-reviewer';
+import { SYSTEM_PROMPT, buildCodeReviewPrompt, parseCodeReviewResponse } from '@/lib/ai-providers/code-reviewer';
 import { getCachedReview, setCachedReview } from '@/lib/storage/cache-storage';
 import { checkAndIncrementRateLimit } from '@/lib/rate-limit-server';
 
-// Server-side API keys (not exposed to client)
 // Server-side API keys (not exposed to client)
 const GROQ_API_KEYS = (process.env.GROQ_API_KEY || '').split(',').filter(k => k.trim());
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
@@ -42,16 +41,18 @@ function recordRateLimit(provider: string, retryAfterSeconds: number = 60) {
 async function tryHuggingFace(code: string, apiKey: string, model: string): Promise<CodeReviewResult> {
   if (isRateLimited(`hf-${model}`)) throw new Error(`HF model ${model} rate limited`);
 
+  // Use buildCodeReviewPrompt which embeds SYSTEM_PROMPT
   const prompt = buildCodeReviewPrompt(code);
+
   const response = await fetch(`${HF_API_URL_PREFIX}${model}`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       inputs: prompt,
-      parameters: { temperature: 0.3, max_new_tokens: 2048 },
+      parameters: { temperature: 0.2, max_new_tokens: 2048 },
       options: { wait_for_model: true }
     }),
   });
@@ -66,7 +67,6 @@ async function tryHuggingFace(code: string, apiKey: string, model: string): Prom
   }
 
   const data = await response.json();
-  // HF Inference API can return different structures depending on model
   let text = '';
   if (Array.isArray(data)) {
     text = data[0]?.generated_text || data[0]?.content || '';
@@ -75,8 +75,8 @@ async function tryHuggingFace(code: string, apiKey: string, model: string): Prom
   }
 
   if (!text) throw new Error('Empty HuggingFace response');
-  
-  // Some HF models include the prompt in output, strip it if necessary
+
+  // Some HF models include the prompt in output, strip it
   if (text.includes('###')) {
     text = text.split('###').pop() || text;
   }
@@ -96,32 +96,14 @@ async function tryGroq(code: string, apiKey: string): Promise<CodeReviewResult> 
       messages: [
         {
           role: 'system',
-          content: `You are a professional Code Reviewer and Technical Assistant.
-
-WHAT YOU WILL ANSWER:
-- Code reviews and analysis
-- ANY technical/programming questions (with or without code snippets)
-- Questions about programming concepts, syntax, algorithms, debugging, architecture
-- "How to" questions about coding, frameworks, tools, libraries
-- Explanations of error messages, best practices, software development topics
-
-WHAT YOU WILL NOT DO:
-- Provide complete source code or full working solutions
-- Engage in non-technical casual conversation
-
-GUIDELINES:
-- ALWAYS answer technical questions directly and thoroughly
-- Explain concepts, logic, and architecture clearly
-- Provide specific syntax snippets to help users learn
-- When asked for complete code: "PROVIDING COMPLETE CODE IS AGAINST THE GUIDELINES OF THIS WEBSITE. I can explain the logic or syntax to help you build it yourself."
-- For non-technical queries: "NOT A PROGRAMMING RELATED QUERY, PLEASE HAVE TECH TALK"
-- Be concise, professional, and direct`,
+          // Single source of truth — imported from code-reviewer.ts
+          content: SYSTEM_PROMPT,
         },
         { role: 'user', content: code },
       ],
-      temperature: 0.3,
+      temperature: 0.2,
       max_tokens: 2048,
-      top_p: 0.95,
+      top_p: 0.9,
     }),
   });
 
@@ -140,8 +122,6 @@ GUIDELINES:
   return parseCodeReviewResponse(text);
 }
 
-// OpenRouter removed as per user request
-
 export async function POST(request: NextRequest) {
   try {
     const { code } = await request.json();
@@ -149,13 +129,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });
     }
 
-    // Get user ID from request header (set by client after auth)
     const userId = request.headers.get('x-user-id');
     if (!userId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Check user-level rate limit BEFORE processing
     const rateLimitResult = await checkAndIncrementRateLimit(userId);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
@@ -174,10 +152,7 @@ export async function POST(request: NextRequest) {
     const cached = await getCachedReview(prompt);
     if (cached) {
       console.log('CACHE_HIT // Server cache');
-      return NextResponse.json({
-        ...cached,
-        quota: rateLimitResult.remaining
-      });
+      return NextResponse.json({ ...cached, quota: rateLimitResult.remaining });
     }
 
     const errors: string[] = [];
@@ -187,25 +162,19 @@ export async function POST(request: NextRequest) {
       try {
         const result = await tryGroq(code, key.trim());
         await setCachedReview(prompt, result);
-        return NextResponse.json({
-          ...result,
-          quota: rateLimitResult.remaining
-        });
+        return NextResponse.json({ ...result, quota: rateLimitResult.remaining });
       } catch (e) {
         errors.push(`Groq: ${e instanceof Error ? e.message : 'failed'}`);
       }
     }
 
-    // Try Hugging Face as backup (multiple models and keys rotation)
+    // Try Hugging Face as backup
     for (const hfKey of HF_API_KEYS) {
       for (const model of HF_MODELS) {
         try {
           const result = await tryHuggingFace(code, hfKey.trim(), model);
           await setCachedReview(prompt, result);
-          return NextResponse.json({
-            ...result,
-            quota: rateLimitResult.remaining
-          });
+          return NextResponse.json({ ...result, quota: rateLimitResult.remaining });
         } catch (e) {
           errors.push(`HF(${model}): ${e instanceof Error ? e.message : 'failed'}`);
         }
