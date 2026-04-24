@@ -174,7 +174,10 @@ export async function POST(request: NextRequest) {
     const cached = await getCachedReview(prompt);
     if (cached) {
       console.log('CACHE_HIT // Server cache');
-      return NextResponse.json(cached);
+      return NextResponse.json({
+        ...cached,
+        quota: rateLimitResult.remaining
+      });
     }
 
     const errors: string[] = [];
@@ -184,7 +187,10 @@ export async function POST(request: NextRequest) {
       try {
         const result = await tryGroq(code, key.trim());
         await setCachedReview(prompt, result);
-        return NextResponse.json(result);
+        return NextResponse.json({
+          ...result,
+          quota: rateLimitResult.remaining
+        });
       } catch (e) {
         errors.push(`Groq: ${e instanceof Error ? e.message : 'failed'}`);
       }
@@ -196,7 +202,10 @@ export async function POST(request: NextRequest) {
         try {
           const result = await tryHuggingFace(code, hfKey.trim(), model);
           await setCachedReview(prompt, result);
-          return NextResponse.json(result);
+          return NextResponse.json({
+            ...result,
+            quota: rateLimitResult.remaining
+          });
         } catch (e) {
           errors.push(`HF(${model}): ${e instanceof Error ? e.message : 'failed'}`);
         }

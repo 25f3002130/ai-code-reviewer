@@ -6,15 +6,15 @@ if (!admin.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       // Use service account key from env if available
       let envKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
-      
+
       // Remove surrounding quotes if present (common in .env files)
-      if ((envKey.startsWith("'") && envKey.endsWith("'")) || 
-          (envKey.startsWith('"') && envKey.endsWith('"'))) {
+      if ((envKey.startsWith("'") && envKey.endsWith("'")) ||
+        (envKey.startsWith('"') && envKey.endsWith('"'))) {
         envKey = envKey.slice(1, -1);
       }
 
       const serviceAccount = JSON.parse(envKey);
-      
+
       // Fix potential newline issues in private key if it was stringified poorly
       if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
@@ -54,6 +54,6 @@ if (!admin.apps.length) {
 
 export const adminDb = admin.apps.length ? admin.firestore() : null;
 export const adminAuth = admin.apps.length ? admin.auth() : null;
-export const isMockAdmin = !process.env.FIREBASE_SERVICE_ACCOUNT_KEY && 
-                           !process.env.FIREBASE_PRIVATE_KEY && 
-                           !process.env.GOOGLE_APPLICATION_CREDENTIALS;
+export const isMockAdmin = !process.env.FIREBASE_SERVICE_ACCOUNT_KEY &&
+  !process.env.FIREBASE_PRIVATE_KEY &&
+  !process.env.GOOGLE_APPLICATION_CREDENTIALS;

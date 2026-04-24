@@ -13,6 +13,8 @@ export interface RateLimitStatus {
     hourly: number;
   };
   resetAt?: Date;
+  dailyResetAt?: Date;
+  hourlyResetAt?: Date;
   isLoading: boolean;
   error: string | null;
 }
@@ -56,7 +58,12 @@ export function useRateLimit() {
               daily: Math.max(0, dailyLimit - requestsToday),
               hourly: Math.max(0, hourlyLimit - requestsThisHour),
             },
-            resetAt: data.resetAt?.toDate(),
+            // Show the next relevant reset time (whichever is more urgent)
+            resetAt: (requestsThisHour >= hourlyLimit) 
+              ? data.hourlyResetAt?.toDate() 
+              : data.dailyResetAt?.toDate(),
+            dailyResetAt: data.dailyResetAt?.toDate(),
+            hourlyResetAt: data.hourlyResetAt?.toDate(),
             isLoading: false,
             error: null,
           });
@@ -78,12 +85,26 @@ export function useRateLimit() {
         setStatus((prev) => ({ ...prev, isLoading: false, error: err.message }));
       }
     );
-
     return () => unsubscribe();
   }, [user]);
 
+  // Add a "tick" effect to force a re-render when a reset time passes
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const now = Date.now();
+  const isHourlyExpired = status.hourlyResetAt && now > status.hourlyResetAt.getTime();
+  const isDailyExpired = status.dailyResetAt && now > status.dailyResetAt.getTime();
+
   return {
     ...status,
-    refresh: () => {}, // No longer needed with onSnapshot
+    remaining: {
+      daily: isDailyExpired ? status.dailyLimit : status.remaining.daily,
+      hourly: isHourlyExpired ? status.hourlyLimit : status.remaining.hourly,
+    },
+    refresh: () => {}, 
   };
 }

@@ -5,7 +5,8 @@ export interface UserRateLimit {
   requestsToday: number;
   requestsThisHour: number;
   lastRequestAt?: any;
-  resetAt?: any;
+  dailyResetAt?: any;
+  hourlyResetAt?: any;
   dailyLimit: number;
   hourlyLimit: number;
 }
@@ -24,7 +25,8 @@ async function getOrCreateRateLimit(userId: string): Promise<UserRateLimit> {
       requestsToday: data.requestsToday || 0,
       requestsThisHour: data.requestsThisHour || 0,
       lastRequestAt: data.lastRequestAt,
-      resetAt: data.resetAt,
+      dailyResetAt: data.dailyResetAt || data.resetAt, // Migration path
+      hourlyResetAt: data.hourlyResetAt,
       dailyLimit: data.dailyLimit || DEFAULT_DAILY_LIMIT,
       hourlyLimit: data.hourlyLimit || DEFAULT_HOURLY_LIMIT,
     };
@@ -66,44 +68,40 @@ export async function checkAndIncrementRateLimit(userId: string): Promise<{
   const docRef = adminDb.collection('rate_limits').doc(userId);
 
   const now = Date.now();
-  const oneHourAgo = now - 3600 * 1000;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTodayMs = startOfToday.getTime();
-
-  // Reset hourly counter if more than an hour has passed since last request
+  
+  // Reset hourly counter if the hour window has expired
   let requestsThisHour = rateLimit.requestsThisHour;
-  if (rateLimit.lastRequestAt && rateLimit.lastRequestAt.toDate().getTime() < oneHourAgo) {
+  let hourlyResetAt = rateLimit.hourlyResetAt?.toDate().getTime() || 0;
+  if (now > hourlyResetAt) {
     requestsThisHour = 0;
+    hourlyResetAt = now + 3600 * 1000;
   }
 
-  // Reset daily counter if it's a new day
+  // Reset daily counter if the daily window has expired
   let requestsToday = rateLimit.requestsToday;
-  if (rateLimit.resetAt && rateLimit.resetAt.toDate().getTime() < startOfTodayMs) {
+  let dailyResetAt = rateLimit.dailyResetAt?.toDate().getTime() || 0;
+  if (now > dailyResetAt) {
     requestsToday = 0;
+    dailyResetAt = now + 86400 * 1000;
   }
 
   // Check hourly limit
   if (requestsThisHour >= rateLimit.hourlyLimit) {
-    const resetAt = rateLimit.lastRequestAt
-      ? new Date(rateLimit.lastRequestAt.toDate().getTime() + 3600 * 1000)
-      : new Date();
     return {
       allowed: false,
       remaining: { daily: rateLimit.dailyLimit - requestsToday, hourly: 0 },
-      resetAt,
-      error: `Hourly rate limit exceeded. Try again in ${Math.ceil((resetAt.getTime() - now) / 60000)} minutes.`,
+      resetAt: new Date(hourlyResetAt),
+      error: `Hourly rate limit exceeded. Resets in ${Math.ceil((hourlyResetAt - now) / 60000)} minutes.`,
     };
   }
 
   // Check daily limit
   if (requestsToday >= rateLimit.dailyLimit) {
-    const tomorrow = new Date(startOfTodayMs + 86400 * 1000);
     return {
       allowed: false,
       remaining: { daily: 0, hourly: rateLimit.hourlyLimit - requestsThisHour },
-      resetAt: tomorrow,
-      error: `Daily rate limit exceeded. Try again tomorrow.`,
+      resetAt: new Date(dailyResetAt),
+      error: `Daily rate limit exceeded. Resets in ${Math.ceil((dailyResetAt - now) / 3600000)} hours.`,
     };
   }
 
@@ -114,14 +112,14 @@ export async function checkAndIncrementRateLimit(userId: string): Promise<{
 
   if (requestsToday === 0) {
     updates.requestsToday = 1;
-    updates.resetAt = FieldValue.serverTimestamp();
+    updates.dailyResetAt = new Date(now + 86400 * 1000);
   } else {
     updates.requestsToday = FieldValue.increment(1);
-    updates.resetAt = rateLimit.resetAt || FieldValue.serverTimestamp();
   }
 
   if (requestsThisHour === 0) {
     updates.requestsThisHour = 1;
+    updates.hourlyResetAt = new Date(now + 3600 * 1000);
   } else {
     updates.requestsThisHour = FieldValue.increment(1);
   }
