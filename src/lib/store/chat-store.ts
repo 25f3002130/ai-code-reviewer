@@ -15,13 +15,13 @@ interface ChatState {
   error: string | null;
 
   // Actions
-  createConversation: () => Conversation;
-  loadConversation: (id: string) => void;
-  deleteConversation: (id: string) => void;
-  addMessage: (conversationId: string, message: Message) => void;
-  updateCurrentConversation: (conversation: Conversation) => void;
+  createConversation: (userId: string) => Conversation;
+  loadConversation: (id: string, userId: string) => void;
+  deleteConversation: (id: string, userId: string) => void;
+  addMessage: (conversationId: string, message: Message, userId: string) => void;
+  updateCurrentConversation: (conversation: Conversation, userId: string) => void;
   setCurrentConversation: (id: string | null) => void;
-  getConversations: () => Conversation[];
+  getConversations: (userId: string) => Conversation[];
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -30,16 +30,17 @@ export const useChatStore = create<ChatState>((set) => ({
   isLoading: false,
   error: null,
 
-  createConversation: () => {
+  createConversation: (userId: string) => {
     const newConversation: Conversation = {
       id: generateId(),
+      userId,
       title: 'New Chat',
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
-    saveConversation(newConversation);
+    saveConversation(newConversation, userId);
 
     set(state => ({
       conversations: [newConversation, ...state.conversations],
@@ -49,8 +50,8 @@ export const useChatStore = create<ChatState>((set) => ({
     return newConversation;
   },
 
-  loadConversation: (id: string) => {
-    const conversation = getConversation(id);
+  loadConversation: (id: string, userId: string) => {
+    const conversation = getConversation(id, userId);
     if (conversation) {
       set(state => ({
         currentConversationId: id,
@@ -61,8 +62,8 @@ export const useChatStore = create<ChatState>((set) => ({
     }
   },
 
-  deleteConversation: (id: string) => {
-    deleteConversation(id);
+  deleteConversation: (id: string, userId: string) => {
+    deleteConversation(id, userId);
 
     set(state => ({
       conversations: state.conversations.filter(c => c.id !== id),
@@ -70,7 +71,7 @@ export const useChatStore = create<ChatState>((set) => ({
     }));
   },
 
-  addMessage: (conversationId: string, message: Message) => {
+  addMessage: (conversationId: string, message: Message, userId: string) => {
     set(state => {
       const updatedConversations = state.conversations.map(conv => {
         if (conv.id === conversationId) {
@@ -95,7 +96,7 @@ export const useChatStore = create<ChatState>((set) => ({
       // Save to localStorage
       const updatedConversation = updatedConversations.find(c => c.id === conversationId);
       if (updatedConversation) {
-        saveConversation(updatedConversation);
+        saveConversation(updatedConversation, userId);
       }
 
       return {
@@ -104,8 +105,8 @@ export const useChatStore = create<ChatState>((set) => ({
     });
   },
 
-  updateCurrentConversation: (conversation: Conversation) => {
-    saveConversation(conversation);
+  updateCurrentConversation: (conversation: Conversation, userId: string) => {
+    saveConversation(conversation, userId);
 
     set(state => ({
       conversations: state.conversations.map(c =>
@@ -118,8 +119,8 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ currentConversationId: id });
   },
 
-  getConversations: () => {
-    const stored = getAllConversations();
+  getConversations: (userId: string) => {
+    const stored = getAllConversations(userId);
     set({ conversations: stored.sort((a, b) => b.updatedAt - a.updatedAt) });
     return stored;
   },

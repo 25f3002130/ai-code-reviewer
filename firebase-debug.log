@@ -26,3 +26,32 @@
     at process.processTimers (node:internal/timers:541:7)
 [error] 
 [error] Error: An unexpected error has occurred.
+[debug] [2026-04-24T08:37:17.621Z] ----------------------------------------------------------------------
+[debug] [2026-04-24T08:37:17.622Z] Command:       /home/dialgga/.nvm/versions/node/v24.15.0/bin/node /home/dialgga/.nvm/versions/node/v24.15.0/bin/firebase login
+[debug] [2026-04-24T08:37:17.622Z] CLI Version:   15.15.0
+[debug] [2026-04-24T08:37:17.622Z] Platform:      linux
+[debug] [2026-04-24T08:37:17.622Z] Node Version:  v24.15.0
+[debug] [2026-04-24T08:37:17.622Z] Time:          Fri Apr 24 2026 14:07:17 GMT+0530 (India Standard Time)
+[debug] [2026-04-24T08:37:17.622Z] ----------------------------------------------------------------------
+[debug] 
+[info] Already logged in as adityaraj11d@gmail.com
+[debug] [2026-04-24T08:37:27.745Z] Error: Timed out.
+    at Timeout._onTimeout (/home/dialgga/.nvm/versions/node/v24.15.0/lib/node_modules/firebase-tools/lib/utils.js:309:49)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-04-24T08:37:57.384Z] ----------------------------------------------------------------------
+[debug] [2026-04-24T08:37:57.385Z] Command:       /home/dialgga/.nvm/versions/node/v24.15.0/bin/node /home/dialgga/.nvm/versions/node/v24.15.0/bin/firebase deploy --only firestore:rules
+[debug] [2026-04-24T08:37:57.385Z] CLI Version:   15.15.0
+[debug] [2026-04-24T08:37:57.385Z] Platform:      linux
+[debug] [2026-04-24T08:37:57.386Z] Node Version:  v24.15.0
+[debug] [2026-04-24T08:37:57.386Z] Time:          Fri Apr 24 2026 14:07:57 GMT+0530 (India Standard Time)
+[debug] [2026-04-24T08:37:57.386Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-24T08:38:03.174Z] Error: Timed out.
+    at Timeout._onTimeout (/home/dialgga/.nvm/versions/node/v24.15.0/lib/node_modules/firebase-tools/lib/utils.js:309:49)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.

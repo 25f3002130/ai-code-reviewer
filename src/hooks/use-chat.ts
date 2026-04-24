@@ -1,10 +1,15 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useChatStore } from '@/lib/store/chat-store';
-import { reviewCode, getProviderStatus } from '@/lib/ai-providers';
+import { useAuth } from '@/lib/firebase/auth-context';
+import { reviewCode, getProviderStatus } from '@/lib/ai-providers/client';
+import { CodeReviewResult } from '@/lib/ai-providers/types';
 import { Message } from '@/types/chat';
 import { generateId, detectLanguage, isTechnicalQuery } from '@/lib/utils';
+import { db } from '@/lib/firebase/config';
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 export function useChat() {
+  const { user } = useAuth();
   const {
     currentConversationId,
     addMessage,
@@ -29,12 +34,16 @@ export function useChat() {
 
   const sendMessage = useCallback(async (content: string, model?: string) => {
     if (!content.trim()) return;
+    if (!user) {
+      setError('You must be logged in to send messages');
+      return;
+    }
 
     let conversationId = currentConversationId;
 
     // Create new conversation if none exists
     if (!conversationId) {
-      const newConv = createConversation();
+      const newConv = createConversation(user.uid);
       conversationId = newConv.id;
     }
 
@@ -47,8 +56,8 @@ export function useChat() {
       codeLanguage: detectLanguage(content),
     };
 
-    addMessage(conversationId, userMessage);
-    
+    addMessage(conversationId, userMessage, user.uid);
+
     // Local Intent Check
     if (!isTechnicalQuery(content)) {
       const refusalMessage: Message = {
@@ -58,7 +67,7 @@ export function useChat() {
         timestamp: Date.now(),
       };
       setTimeout(() => {
-        addMessage(conversationId, refusalMessage);
+        addMessage(conversationId, refusalMessage, user.uid);
         setIsGenerating(false);
       }, 500);
       return;
@@ -68,8 +77,8 @@ export function useChat() {
     setError(null);
 
     try {
-      // Get code review from AI
-      const result = await reviewCode(content, model);
+      // Get code review from AI (with user rate limiting)
+      const result = await reviewCode(content, user.uid);
       setProviderStatus(getProviderStatus());
 
       // Add assistant response
@@ -80,7 +89,32 @@ export function useChat() {
         timestamp: Date.now(),
       };
 
-      addMessage(conversationId, assistantMessage);
+      // Client-side rate limit incrementing (fallback for local development)
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const rateLimitRef = doc(db, 'rate_limits', user.uid);
+          const rateLimitSnap = await getDoc(rateLimitRef);
+          
+          if (!rateLimitSnap.exists()) {
+            await setDoc(rateLimitRef, {
+              requestsToday: 1,
+              requestsThisHour: 1,
+              dailyLimit: 30,
+              hourlyLimit: 10,
+              lastRequestAt: serverTimestamp(),
+              resetAt: serverTimestamp()
+            });
+          } else {
+            await updateDoc(rateLimitRef, {
+              requestsToday: increment(1),
+              requestsThisHour: increment(1),
+              lastRequestAt: serverTimestamp()
+            });
+          }
+        } catch (rateLimitErr) {
+          // Silent fail in development
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get code review';
       setError(errorMessage);
@@ -90,15 +124,15 @@ export function useChat() {
       const errorMessageObj: Message = {
         id: generateId(),
         role: 'assistant',
-        content: `Error: ${errorMessage}\n\nTip: If rate limited, wait a moment and try again. The system will automatically fall back to alternative providers.`,
+        content: `Error: ${errorMessage}\n\n${errorMessage.includes('limit') ? 'Your personal rate limit helps ensure fair usage for all 1000+ users. Wait for the limit to reset, then try again.' : 'Tip: If rate limited, wait a moment and try again.'}`,
         timestamp: Date.now(),
       };
 
-      addMessage(conversationId, errorMessageObj);
+      addMessage(conversationId, errorMessageObj, user.uid);
     } finally {
       setIsGenerating(false);
     }
-  }, [currentConversationId, addMessage, createConversation]);
+  }, [currentConversationId, addMessage, createConversation, user]);
 
   const clearError = useCallback(() => {
     setError(null);

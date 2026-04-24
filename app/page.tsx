@@ -20,21 +20,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black flex flex-col relative overflow-x-hidden">
-      {/* Background Animation */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <GLSLHills
-          width="100%"
-          height="100%"
-          cameraZ={125}
-          planeSize={256}
-          speed={0.5}
-        />
-      </div>
+      {/* Background - Simplified to CSS for debug */}
+      <div className="absolute inset-0 z-0 bg-black" />
+      <div className="absolute inset-0 z-0 opacity-30 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 via-transparent to-transparent pointer-events-none" />
+      
+      <Navbar onSignUp={handleSignUp} onSignIn={handleSignIn} />
 
-      <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80 pointer-events-none" />
-
-      <div className="relative z-10 flex flex-col">
-        <Navbar onSignUp={handleSignUp} onSignIn={handleSignIn} />
+      <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* Hero Section */}
         <section className="min-h-screen flex items-center justify-center px-6 pt-20 pb-20">

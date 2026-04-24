@@ -87,14 +87,35 @@ export function FormattedMessage({ content }: { content: string }) {
               processedLines.push(<h3 key={lineIndex} className="text-sm font-black mb-3 mt-6 tracking-[0.2em] text-zinc-400 border-l-4 border-zinc-800 pl-4">{text}</h3>);
             }
           } 
-          // Lists
-          else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || trimmedLine.match(/^\d+\.\s/)) {
-            const text = trimmedLine.replace(/^([-*]|\d+\.)\s*/, '');
+          // Lists (+, -, *, or 1.)
+          else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || trimmedLine.startsWith('+ ') || trimmedLine.match(/^\d+\.\s/)) {
+            let text = trimmedLine.replace(/^([-*+]|\d+\.)\s*/, '');
+            // Simple bold replacement
+            text = text.replace(/\*\*(.*?)\*\*/g, '$1');
+            
             currentList.push(
               <li key={`li-${lineIndex}`} className="text-sm font-bold uppercase tracking-tight flex gap-3">
                 <span className="text-white font-black">{">"}</span>
                 <span>{text}</span>
               </li>
+            );
+          }
+          // Blockquotes
+          else if (trimmedLine.startsWith('>')) {
+            // Flush list
+            if (currentList.length > 0) {
+              processedLines.push(
+                <ul key={`list-${lineIndex}`} className="space-y-3 my-6 border-l-4 border-white pl-6">
+                  {currentList}
+                </ul>
+              );
+              currentList = [];
+            }
+            const text = trimmedLine.replace(/^>\s*/, '');
+            processedLines.push(
+              <blockquote key={lineIndex} className="my-6 border-l-4 border-zinc-500 pl-6 py-2 italic text-zinc-400 font-bold uppercase tracking-tight text-xs bg-zinc-900/50">
+                {text}
+              </blockquote>
             );
           }
           // Normal text
@@ -108,7 +129,17 @@ export function FormattedMessage({ content }: { content: string }) {
               );
               currentList = [];
             }
-            processedLines.push(<p key={lineIndex} className="my-4 text-sm font-medium leading-relaxed">{line}</p>);
+            
+            // Process bold in normal text
+            const textParts = line.split(/(\*\*.*?\*\*)/g);
+            const renderedLine = textParts.map((part, i) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return <strong key={i} className="text-white font-black underline decoration-zinc-500 decoration-2 underline-offset-4">{part.slice(2, -2)}</strong>;
+              }
+              return part;
+            });
+
+            processedLines.push(<p key={lineIndex} className="my-4 text-sm font-medium leading-relaxed">{renderedLine}</p>);
           }
         });
 

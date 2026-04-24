@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { signIn, signInWithGoogle } from '@/lib/firebase/auth';
+import { signIn, signInWithGoogle, handleSignInRedirectResult } from '@/lib/firebase/auth';
+import { useAuth } from '@/lib/firebase/auth-context';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Code2 } from 'lucide-react';
 import Link from 'next/link';
@@ -15,11 +16,42 @@ interface AuthError extends Error {
 
 export default function SignInPage() {
   const router = useRouter();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && currentUser) {
+      router.push('/chat');
+    }
+  }, [authLoading, currentUser, router]);
+
+  // Handle redirect result on mount
+  useEffect(() => {
+    let cancelled = false;
+    const handleRedirect = async () => {
+      console.log('Checking for Google redirect result...');
+      try {
+        const user = await handleSignInRedirectResult(false);
+        if (user && !cancelled) {
+          console.log('Redirect result received, navigating to chat');
+          router.push('/chat');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const authError = err as AuthError;
+          console.error('Redirect error:', authError);
+          setError(authError.message || 'Google sign in failed.');
+        }
+      }
+    };
+    handleRedirect();
+    return () => { cancelled = true; };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +59,8 @@ export default function SignInPage() {
     setError('');
     try {
       await signIn(email, password);
-      router.push('/chat');
+      // Use window.location for a hard redirect to ensure state is fresh
+      window.location.href = '/chat/new';
     } catch (err) {
       const authError = err as AuthError;
       setError(
@@ -44,12 +77,13 @@ export default function SignInPage() {
     setLoading(true);
     setError('');
     try {
-      await signInWithGoogle(false);
-      router.push('/chat');
+      const user = await signInWithGoogle(false);
+      if (user) {
+        window.location.href = '/chat/new';
+      }
     } catch (err) {
       const authError = err as AuthError;
       setError(authError.message || 'Google sign in failed.');
-    } finally {
       setLoading(false);
     }
   };

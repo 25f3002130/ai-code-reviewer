@@ -16,11 +16,8 @@ export function Navbar({ onSignUp, onSignIn }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6, ease: 'easeOut' }}
-      className="fixed top-0 left-0 right-0 z-50 px-4 py-4"
+    <nav
+      className="fixed top-0 left-0 right-0 z-[100] px-4 py-6"
     >
       <div className="max-w-7xl mx-auto px-6 py-4 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)]">
         <div className="flex items-center justify-between">
@@ -104,6 +101,6 @@ export function Navbar({ onSignUp, onSignIn }: NavbarProps) {
           </motion.div>
         )}
       </div>
-    </motion.nav>
+    </nav>
   );
 }

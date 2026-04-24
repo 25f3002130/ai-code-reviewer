@@ -3,19 +3,21 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useAuth } from '@/lib/firebase/auth-context';
 
 export default function ChatRootPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { createConversation } = useChatStore();
   const hasCreated = useRef(false);
 
   useEffect(() => {
-    if (hasCreated.current) return;
+    if (hasCreated.current || !user) return;
     hasCreated.current = true;
-    
-    const newConv = createConversation();
+
+    const newConv = createConversation(user.uid);
     router.replace(`/chat/${newConv.id}`);
-  }, [createConversation, router]);
+  }, [createConversation, router, user]);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">

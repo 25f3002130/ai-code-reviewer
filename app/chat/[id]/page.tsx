@@ -4,16 +4,21 @@ import { useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useChat } from '@/hooks/use-chat';
+import { useRateLimit } from '@/hooks/use-rate-limit';
+import { useAuth } from '@/lib/firebase/auth-context';
 import { ChatLayout } from '@/components/chat/chat-layout';
 import { ChatMessages } from '@/components/chat/chat-messages';
 import { ChatInput } from '@/components/chat/chat-input';
 import { UserMenu } from '@/components/chat/user-menu';
+import { db } from '@/lib/firebase/config';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export default function ChatPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
   const processedIdRef = useRef<string | null>(null);
+  const { user, loading } = useAuth();
 
   const {
     conversations,
@@ -23,33 +28,81 @@ export default function ChatPage() {
     loadConversation,
   } = useChatStore();
 
-  const { 
-    sendMessage, 
-    isGenerating, 
-    error, 
+  const {
+    sendMessage,
+    isGenerating,
+    error,
     clearError,
-    providerStatus 
+    providerStatus
   } = useChat();
+
+  const { remaining, dailyLimit, hourlyLimit } = useRateLimit();
+
+  // Redirect to sign-in if not authenticated (with a slight delay to allow auth state to resolve)
+  useEffect(() => {
+    if (!loading && !user) {
+      const timeout = setTimeout(() => {
+        if (!user) router.replace('/signin');
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [user, loading, router]);
+
+  // Ensure user profile exists in Firestore
+  useEffect(() => {
+    const ensureUserProfile = async () => {
+      if (!user || loading) return;
+
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+          await setDoc(userRef, {
+            name: user.displayName || 'Anonymous',
+            email: user.email || '',
+            provider: user.providerData[0]?.providerId || 'unknown',
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        // Silent fail
+      }
+    };
+
+    ensureUserProfile();
+  }, [user, loading]);
 
   // Load or create conversation
   useEffect(() => {
+    if (!user) return;
+
     // Avoid double processing the same ID in the same mount cycle
     if (processedIdRef.current === id && id !== 'new') return;
-    
+
     if (id === 'new') {
       // Only create if we haven't already initiated a creation in this mount
       if (processedIdRef.current !== 'new') {
         processedIdRef.current = 'new';
-        const newConv = createConversation();
+        const newConv = createConversation(user.uid);
         // Set a timeout or use replace immediately to move away from 'new'
         router.replace(`/chat/${newConv.id}`, { scroll: false });
       }
     } else {
       processedIdRef.current = id;
-      loadConversation(id);
+      loadConversation(id, user.uid);
       setCurrentConversation(id);
     }
-  }, [id, createConversation, loadConversation, setCurrentConversation, router]);
+  }, [id, createConversation, loadConversation, setCurrentConversation, router, user]);
+
+  // Show loading while auth state is being determined
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-white border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
 
   // Get current conversation
   const currentConversation = conversations.find(c => c.id === id);
@@ -107,6 +160,12 @@ export default function ChatPage() {
           onSend={handleSend}
           isLoading={isGenerating}
           providerStatus={providerStatus}
+          quotaRemaining={{
+            daily: remaining.daily,
+            hourly: remaining.hourly,
+            dailyLimit,
+            hourlyLimit,
+          }}
         />
       </div>
     </ChatLayout>

@@ -2,13 +2,19 @@
 
 import { useState, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Send, Zap, ChevronDown, AlertCircle } from 'lucide-react';
+import { Send, Zap, ChevronDown, AlertCircle, Gauge } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string, model?: string) => void;
   isLoading?: boolean;
   disabled?: boolean;
   providerStatus?: Array<{ name: string; available: boolean; resetAt?: number }>;
+  quotaRemaining?: {
+    daily: number;
+    hourly: number;
+    dailyLimit: number;
+    hourlyLimit: number;
+  };
 }
 
 const MODELS = [
@@ -17,11 +23,12 @@ const MODELS = [
   { id: '', name: 'AUTO_FALLBACK' },
 ];
 
-export function ChatInput({ 
-  onSend, 
-  isLoading = false, 
+export function ChatInput({
+  onSend,
+  isLoading = false,
   disabled = false,
-  providerStatus = []
+  providerStatus = [],
+  quotaRemaining = { daily: 0, hourly: 0, dailyLimit: 30, hourlyLimit: 10 }
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
@@ -93,6 +100,24 @@ export function ChatInput({
           </div>
 
           <div className="absolute right-4 bottom-4 flex items-center gap-3">
+            {/* Quota Meter */}
+            <div className="flex items-center gap-3 mr-2">
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gauge className="w-3 h-3 text-zinc-600" />
+                  <span className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-500">
+                    DAILY: {quotaRemaining.daily}/{quotaRemaining.dailyLimit}
+                  </span>
+                </div>
+                <div className="w-24 bg-zinc-900 h-1">
+                  <div
+                    className={`h-full transition-all ${quotaRemaining.dailyLimit > 0 && quotaRemaining.daily < 5 ? 'bg-red-500' : 'bg-white'}`}
+                    style={{ width: `${quotaRemaining.dailyLimit > 0 ? (quotaRemaining.daily / quotaRemaining.dailyLimit) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
             <Button
               onClick={handleSubmit}
               disabled={!message.trim() || isLoading || disabled}
