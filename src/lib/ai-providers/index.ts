@@ -22,6 +22,49 @@ const rateLimitState = new Map<string, { isLimited: boolean; resetAt?: number }>
 // Track rotation index per provider
 const rotationIndex = new Map<string, number>();
 
+/**
+ * Retry wrapper for transient failures (network errors, 5xx)
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  providerName: string,
+  maxRetries: number = 2
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+
+      // Don't retry on auth errors, rate limits, or client errors
+      if (lastError.message.includes('401') ||
+          lastError.message.includes('403') ||
+          lastError.message.includes('Invalid') ||
+          lastError.message.includes('rate limit')) {
+        break;
+      }
+
+      // Retry on network errors or 5xx
+      if (lastError.message.includes('500') ||
+          lastError.message.includes('502') ||
+          lastError.message.includes('503') ||
+          lastError.message.includes('network') ||
+          lastError.message.includes('fetch')) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.log(`[AI_PROVIDER] ${providerName} retry ${attempt + 1}/${maxRetries} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  throw lastError;
+}
+
 function getApiKey(providerName: string, envKeyName: string): string | null {
   const allKeysStr = process.env[envKeyName] || '';
   const keys = allKeysStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
@@ -76,15 +119,20 @@ export async function reviewCode(code: string, preferredProvider?: string): Prom
       const apiKey = getApiKey(provider.name, provider.envKeys);
       if (!apiKey) continue;
 
-      const result = await provider.module.reviewCode(code, apiKey);
-      
+      const result = await withRetry(
+        () => provider.module.reviewCode(code, apiKey),
+        provider.name
+      );
+
       // Save to cache on success
       await setCachedReview(prompt, result);
-      
+
       return result;
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error');
       errors.push(err);
+
+      console.error(`[AI_PROVIDER] ${provider.name} failed:`, err.message);
 
       if (err.message.includes('rate limit')) {
         rateLimitState.set(provider.name, {
@@ -95,7 +143,10 @@ export async function reviewCode(code: string, preferredProvider?: string): Prom
     }
   }
 
-  const errorMessages = errors.map(e => e.message).join('; ');
+  const errorMessages = errors.map((e, i) => {
+    const providerName = PROVIDERS[i]?.name || 'unknown';
+    return `${providerName}: ${e.message}`;
+  }).join(' | ');
   throw new Error(`All AI providers failed: ${errorMessages}`);
 }
 
@@ -112,6 +163,8 @@ export async function* reviewCodeStream(code: string, preferredProvider?: string
     }
   }
 
+  const streamingErrors: Error[] = [];
+
   for (const provider of PROVIDERS) {
     const state = rateLimitState.get(provider.name);
     if (state?.isLimited && (!state.resetAt || Date.now() < state.resetAt)) {
@@ -120,10 +173,14 @@ export async function* reviewCodeStream(code: string, preferredProvider?: string
 
     try {
       const apiKey = getApiKey(provider.name, provider.envKeys);
-      if (!apiKey) continue;
+      if (!apiKey) {
+        streamingErrors.push(new Error(`${provider.name}: API key not configured`));
+        continue;
+      }
       yield* provider.module.reviewCodeStream(code, apiKey);
       return;
     } catch (error) {
+      streamingErrors.push(error instanceof Error ? error : new Error('Unknown error'));
       if (error instanceof Error && error.message.includes('rate limit')) {
         rateLimitState.set(provider.name, {
           isLimited: true,
@@ -133,7 +190,11 @@ export async function* reviewCodeStream(code: string, preferredProvider?: string
     }
   }
 
-  throw new Error('All AI providers failed for streaming');
+  const errorMessages = streamingErrors.map((e, i) => {
+    const providerName = PROVIDERS[i]?.name || 'unknown';
+    return `${providerName}: ${e.message}`;
+  }).join(' | ');
+  throw new Error(`All AI providers failed: ${errorMessages}`);
 }
 
 export function getProviderStatus(): Array<{ name: string; available: boolean; resetAt?: number }> {

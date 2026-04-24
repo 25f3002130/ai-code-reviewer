@@ -79,35 +79,57 @@ export function generateChatTitle(code: string): string {
 
 /**
  * Detects if a query is technical or code-related locally to save API tokens.
+ * This filter is PERMISSIVE - when in doubt, let it through to the AI.
+ * The AI will handle filtering truly non-technical queries.
  */
 export function isTechnicalQuery(text: string): boolean {
   const technicalKeywords = [
-    'code', 'function', 'bug', 'error', 'debug', 'api', 'react', 'nextjs', 
-    'javascript', 'typescript', 'python', 'html', 'css', 'git', 'database',
-    'sql', 'optimization', 'performance', 'array', 'object', 'loop', 'variable',
-    'component', 'hook', 'state', 'props', 'effect', 'auth', 'firebase', 'groq',
-    'gemini', 'llama', 'model', 'ai', 'develop', 'program', 'script', 'compile',
-    'build', 'deploy', 'refactor', 'syntax', 'logic', 'algorithm', 'data',
-    'server', 'client', 'frontend', 'backend', 'fullstack', 'review', 'analysis',
-    'how to', 'why does', 'fix', 'improve', 'test', 'unit', 'integration',
-    'security', 'vulnerability', 'patch', 'update', 'version', 'npm', 'node',
-    'package', 'json', 'yaml', 'config', 'setup', 'install', 'run'
+    // Core programming
+    'code', 'function', 'class', 'method', 'variable', 'constant', 'loop', 'array', 'object',
+    'string', 'number', 'boolean', 'null', 'undefined', 'return', 'import', 'export',
+    'module', 'package', 'library', 'framework', 'api', 'sdk', 'cli',
+    // Languages & tech
+    'javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'rust', 'go', 'ruby', 'php',
+    'html', 'css', 'scss', 'sql', 'json', 'xml', 'yaml', 'markdown',
+    'react', 'nextjs', 'vue', 'angular', 'svelte', 'node', 'deno', 'bun',
+    // Concepts
+    'bug', 'error', 'debug', 'exception', 'stack trace', 'compile', 'runtime',
+    'syntax', 'semantics', 'type', 'interface', 'generic', 'inheritance', 'polymorphism',
+    'async', 'await', 'promise', 'callback', 'event', 'listener',
+    'algorithm', 'data structure', 'complexity', 'performance', 'optimization',
+    'database', 'sql', 'nosql', 'mongodb', 'postgres', 'mysql', 'redis',
+    'git', 'commit', 'branch', 'merge', 'pull request', 'repository',
+    'server', 'client', 'frontend', 'backend', 'fullstack', 'devops', 'ci/cd',
+    'docker', 'kubernetes', 'cloud', 'aws', 'gcp', 'azure', 'vercel', 'netlify',
+    'auth', 'authentication', 'authorization', 'jwt', 'oauth', 'session', 'cookie',
+    'firebase', 'groq', 'gemini', 'openai', 'llm', 'ai', 'ml', 'model',
+    // Actions
+    'develop', 'program', 'build', 'deploy', 'test', 'debug', 'refactor',
+    'fix', 'implement', 'create', 'update', 'delete', 'read', 'write', 'fetch',
+    'install', 'setup', 'configure', 'run', 'execute', 'start', 'stop',
+    'review', 'analyze', 'explain', 'understand', 'learn', 'teach',
+    // Question patterns (technical)
+    'how to', 'how do', 'why does', 'what is', 'difference between',
+    'best practice', 'recommend', 'suggest', 'improve', 'optimize'
   ];
 
   const codePatterns = [
     /[{}[\]()]/,      // Brackets
-    /[;=><!|&]/,      // Operators
+    /[;=><!|&+\-*/%]/,      // Operators
     /\w+\(/,          // Function calls
     /\.\w+/,          // Property access
     /import\s+/,      // ES6 imports
     /const\s+|let\s+|var\s+/, // Variable declarations
-    /def\s+|class\s+/, // Python/Class keywords
-    /<\/?[a-z][\s\S]*>/i // HTML tags
+    /def\s+|class\s+|func\s+/, // Python/Class keywords
+    /<\/?[a-z][\s\S]*>/i, // HTML tags
+    /=>/,             // Arrow functions
+    /async\s+/,       // Async keywords
+    /await\s+/,
   ];
 
   const lowerText = text.toLowerCase();
-  
-  // Check keywords
+
+  // Check keywords - more permissive matching
   const hasKeyword = technicalKeywords.some(kw => lowerText.includes(kw));
   if (hasKeyword) return true;
 
@@ -115,9 +137,20 @@ export function isTechnicalQuery(text: string): boolean {
   const hasCodePattern = codePatterns.some(pattern => pattern.test(text));
   if (hasCodePattern) return true;
 
-  // If the text is long and has high density of symbols/indentation, assume technical
-  if (text.length > 100 && (text.includes('\n') || text.includes('  '))) return true;
+  // Questions containing "why", "how", "what" with technical context
+  const questionPatterns = [
+    /\bwhy\b.*\b(code|program|software|app|function|error|bug)\b/i,
+    /\bhow\b.*\b(code|program|software|app|function|work|implement|build|create)\b/i,
+    /\bwhat\b.*\b(code|program|software|app|function|method|approach|way)\b/i,
+  ];
+  for (const pattern of questionPatterns) {
+    if (pattern.test(text)) return true;
+  }
 
-  return false;
+  // If the text is long (detailed question), assume it's worth asking the AI
+  if (text.length > 150) return true;
+
+  // Default: let it through - the AI will filter non-technical queries
+  return true;
 }
 

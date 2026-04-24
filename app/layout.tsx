@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ZINC×NH - High-Impact Code Analysis",
     description: "Instant code analysis, bug detection, and performance optimization.",
-    images: [{ url: '/videos/image.png' }],
+    images: ['/image.png'],
     type: 'website',
   },
   twitter: {
